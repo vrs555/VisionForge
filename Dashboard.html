@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMRL Train Induction Optimization Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #2d3748;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 1rem;
+            overflow-x: hidden;
+        }
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #1d4ed8 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+        header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+        }
+        header p {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+            font-weight: 300;
+        }
+        main { padding: 3rem 2rem; }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 2rem;
+            margin-bottom: 2.5rem;
+            align-items: start;
+        }
+        .control-panel {
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        .control-panel h3 {
+            color: #1e40af;
+            margin-bottom: 2rem;
+            font-size: 1.6rem;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .control-panel label {
+            display: block;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.95rem;
+        }
+        .control-panel input, .control-panel select {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .control-panel input:focus, .control-panel select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1), 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
+        button {
+            width: 100%;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        button:hover:not(:disabled)::before { left: 100%; }
+        button:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(59, 130, 246, 0.4);
+        }
+        button:disabled {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px; height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #status {
+            margin-top: 1.5rem;
+            font-style: italic;
+            text-align: center;
+            color: #059669;
+            font-weight: 500;
+            padding: 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid #10b981;
+            display: none;
+        }
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        .result-card {
+            background: linear-gradient(135deg, rgba(248, 250, 252, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%);
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        .result-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+        }
+        .result-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        .result-card h3 {
+            color: #1e40af;
+            margin-bottom: 1rem;
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .result-card p { color: #6b7280; font-size: 1.1rem; margin: 0; font-weight: 500; }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 1rem;
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid #e5e7eb;
+            display: none;
+        }
+        th, td {
+            padding: 1.2rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        th {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            color: #1e40af;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: pointer;
+            transition: background 0.3s;
+            user-select: none;
+        }
+        th:hover { background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%); }
+        tr { transition: all 0.3s ease; }
+        tr:hover {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            transform: scale(1.005);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .status-good { color: #059669; font-weight: 600; text-shadow: 0 1px 2px rgba(5, 150, 105, 0.2); }
+        .status-warn { color: #d97706; font-weight: 600; }
+        .status-bad  { color: #dc2626; font-weight: 600; text-shadow: 0 1px 2px rgba(220, 38, 38, 0.2); }
+
+        .progress {
+            background: #f3f4f6;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399, #06b6d4);
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+        .stars { font-size: 1.3rem; color: #fbbf24; }
+        .sort-icon { margin-left: 0.5rem; font-size: 0.8rem; opacity: 0.5; transition: opacity 0.3s; }
+        th:hover .sort-icon { opacity: 1; }
+
+        .filter-bar {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 12px;
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filter-btn {
+            padding: 0.6rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        .filter-btn.active {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        .filter-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .grow { flex: 1; min-width: 220px; }
+        .muted { color: #6b7280; font-size: 0.95rem; padding: 0.5rem 0.25rem; }
+
+        @media (max-width: 1024px) {
+            .controls { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            table { font-size: 0.9rem; }
+            th, td { padding: 0.8rem 0.5rem; }
+            header h1 { font-size: 2.2rem; }
+            .results-grid { grid-template-columns: 1fr; gap: 1rem; }
+            main { padding: 1.5rem 1rem; }
+            .filter-bar { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-container">
+    <header>
+        <h1>🚇 KMRL Train Induction Optimizer</h1>
+        <p>AI-Powered Dashboard for Intelligent Fleet Deployment & Optimization</p>
+    </header>
+
+    <main>
+        <div class="controls">
+            <div class="control-panel">
+                <h3>⚙️ Planning Controls</h3>
+                <label>📅 Planning Date:
+                    <input type="date" id="planDate" />
+                </label>
+                <label>🎯 Service Demand:
+                    <select id="demand">
+                        <option>Standard (20 trains)</option>
+                        <option>Peak Hours (22 trains)</option>
+                        <option>Weekend (18 trains)</option>
+                        <option>Emergency (25 trains)</option>
+                    </select>
+                </label>
+                <button id="optimizeBtn" onclick="runOptimization()">
+                    🚀 Launch AI Optimization
+                </button>
+                <p id="status"></p>
+            </div>
+
+            <div id="results" class="results-grid" style="display: none;">
+                <!-- KPIs will be injected here -->
+            </div>
+        </div>
+
+        <div class="filter-bar" id="filterBar">
+            <button class="filter-btn active" onclick="filterTrains('all', this)">All Trains</button>
+            <button class="filter-btn" onclick="filterTrains('revenue', this)">Revenue Service</button>
+            <button class="filter-btn" onclick="filterTrains('standby', this)">Standby</button>
+            <button class="filter-btn" onclick="filterTrains('maintenance', this)">Maintenance</button>
+            <button class="filter-btn" onclick="filterTrains('oos', this)">Out of Service</button>
+            <button class="filter-btn" onclick="filterTrains('highrisk', this)">High Delay Risk</button>
+            <input class="grow" type="search" id="searchBox" placeholder="Search ID, depot, notes..." oninput="renderTable()" />
+            <button class="filter-btn" onclick="exportCSV()">⬇️ Export CSV</button>
+        </div>
+
+        <table id="trainsTable">
+            <thead>
+                <tr>
+                    <th data-key="id">Train ID <span class="sort-icon">↕</span></th>
+                    <th data-key="statusText">Status <span class="sort-icon">↕</span></th>
+                    <th data-key="duty">Duty <span class="sort-icon">↕</span></th>
+                    <th data-key="startMin">Start <span class="sort-icon">↕</span></th>
+                    <th data-key="endMin">End <span class="sort-icon">↕</span></th>
+                    <th data-key="utilization">Utilization <span class="sort-icon">↕</span></th>
+                    <th data-key="energyScore">Energy Score <span class="sort-icon">↕</span></th>
+                    <th data-key="health">Health <span class="sort-icon">↕</span></th>
+                    <th data-key="riskScore">Delay Risk <span class="sort-icon">↕</span></th>
+                    <th data-key="depot">Depot <span class="sort-icon">↕</span></th>
+                    <th data-key="notes">Notes</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- rows injected by JS -->
+            </tbody>
+        </table>
+        <p id="noRows" class="muted" style="display:none;">No trains match your filter/search.</p>
+    </main>
+</div>
+
+<script>
+    // Global state
+    let trains = [];
+    let sortState = { key: 'id', dir: 'asc' };
+    let activeFilter = 'all';
+    let currentDemandName = '';
+    let summary = null;
+
+    const DEMAND_CONFIG = {
+        'Standard (20 trains)': { totalTrains: 20, revenue: 18, standby: 1, maintenance: 1, oos: 0, headwayMin: 6, serviceStart: 6 * 60, serviceEnd: 23 * 60 },
+        'Peak Hours (22 trains)': { totalTrains: 22, revenue: 20, standby: 1, maintenance: 1, oos: 0, headwayMin: 5, serviceStart: 5.5 * 60, serviceEnd: 23.5 * 60 },
+        'Weekend (18 trains)': { totalTrains: 18, revenue: 16, standby: 1, maintenance: 1, oos: 0, headwayMin: 7, serviceStart: 7 * 60, serviceEnd: 23 * 60 },
+        'Emergency (25 trains)': { totalTrains: 25, revenue: 22, standby: 2, maintenance: 1, oos: 0, headwayMin: 4, serviceStart: 5 * 60, serviceEnd: 24 * 60 }
+    };
+
+    // Helpers
+    const rand = (min, max) => Math.random() * (max - min) + min;
+    const randInt = (min, max) => Math.floor(rand(min, max + 1));
+    const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+    const pad = (n) => n.toString().padStart(2, '0');
+    function toTimeStr(mins) {
+        if (mins == null || isNaN(mins)) return '-';
+        mins = Math.round(mins);
+        if (mins >= 24 * 60) mins -= 24 * 60; // wrap next day
+        const h = Math.floor(mins / 60), m = mins % 60;
+        return `${pad(h)}:${pad(m)}`;
+    }
+    const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+
+    function setTodayIfEmpty() {
+        const input = document.getElementById('planDate');
+        const saved = localStorage.getItem('kmrl.planDate');
+        if (saved) {
+            input.value = saved;
+        } else {
+            const d = new Date();
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            input.value = `${yyyy}-${mm}-${dd}`;
+        }
+        input.addEventListener('change', () => localStorage.setItem('kmrl.planDate', input.value));
+        const demandSel = document.getElementById('demand');
+        const savedDem = localStorage.getItem('kmrl.demand');
+        if (savedDem) demandSel.value = savedDem;
+        demandSel.addEventListener('change', () => localStorage.setItem('kmrl.demand', demandSel.value));
+    }
+
+    function runOptimization() {
+        const btn = document.getElementById('optimizeBtn');
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+        const table = document.getElementById('trainsTable');
+        const demandSel = document.getElementById('demand');
+        const planDate = document.getElementById('planDate').value;
+
+        currentDemandName = demandSel.value;
+
+        // Button loading state
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = `<span class="loading-spinner"></span> Optimizing...`;
+        status.style.display = 'block';
+        status.style.color = '#0369a1';
+        status.style.borderLeftColor = '#0ea5e9';
+        status.textContent = `Running scenario for ${planDate} • ${currentDemandName} — allocating duty, headway, spares, and maintenance windows...`;
+
+        // Simulate AI opt time
+        const simDuration = randInt(800, 1600);
+        setTimeout(() => {
+            const plan = generatePlan(currentDemandName);
+            trains = plan.trains;
+            summary = plan.summary;
+            renderKpis(summary);
+            results.style.display = 'grid';
+            table.style.display = 'table';
+            renderTable();
+
+            status.style.display = 'block';
+            status.style.color = '#059669';
+            status.style.borderLeftColor = '#10b981';
+            status.textContent = `Optimization complete for ${planDate} • Deployed ${summary.deployed}/${summary.total} trains • Headway: ${summary.headway} min`;
+
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }, simDuration);
+    }
+
+    function generatePlan(demandName) {
+        const cfg = DEMAND_CONFIG[demandName] || DEMAND_CONFIG['Standard (20 trains)'];
+        const total = cfg.totalTrains;
+        const depots = ['Muttom Depot', 'Aluva Yard'];
+        const trains = [];
+        let idNum = 1;
+
+        // Create revenue trains
+        for (let i = 0; i < cfg.revenue; i++) {
+            const startMin = randInt(cfg.serviceStart - 30, cfg.serviceStart + 60);
+            const endMin = randInt(cfg.serviceEnd - 60, cfg.serviceEnd + 30);
+            const health = clamp(Math.round(rand(72, 96)), 0, 100);
+            const energy = clamp(Math.round(rand(65, 95)), 0, 100);
+            const utilization = clamp(Math.round(rand(82, 95)), 0, 100);
+            const riskScore = computeRiskScore(health, utilization, 0.05);
+            trains.push({
+                id: `KMRL-${String(idNum++).padStart(2, '0')}`,
+                status: 'revenue',
+                statusText: 'Revenue Service',
+                duty: 'Line 1 Service',
+                startMin, endMin,
+                start: toTimeStr(startMin), end: toTimeStr(endMin),
+                health, energyScore: energy, utilization, riskScore,
+                riskLevel: riskLevelFromScore(riskScore),
+                depot: depots[randInt(0, depots.length - 1)],
+                notes: pick(['Regen braking optimized', 'Door calibration OK', 'ATC nominal', 'Wheel profile within limits', 'Brake test passed'])
+            });
+        }
+
+        // Standby
+        for (let i = 0; i < cfg.standby; i++) {
+            const startMin = randInt(cfg.serviceStart, cfg.serviceStart + 120);
+            const endMin = randInt(cfg.serviceEnd - 120, cfg.serviceEnd);
+            const health = clamp(Math.round(rand(68, 92)), 0, 100);
+            const energy = clamp(Math.round(rand(60, 90)), 0, 100);
+            const utilization = clamp(Math.round(rand(12, 28)), 0, 100);
+            const riskScore = computeRiskScore(health, utilization, 0.02);
+            trains.push({
+                id: `KMRL-${String(idNum++).padStart(2, '0')}`,
+                status: 'standby',
+                statusText: 'Standby (Hot Spare)',
+                duty: 'Standby - Hot Spare',
+                startMin, endMin,
+                start: toTimeStr(startMin), end: toTimeStr(endMin),
+                health, energyScore: energy, utilization, riskScore,
+                riskLevel: riskLevelFromScore(riskScore),
+                depot: depots[randInt(0, depots.length - 1)],
+                notes: pick(['Ready for immediate induction', 'Crew assigned on call', 'Low dwell allocation'])
+            });
+        }
+
+        // Maintenance
+        for (let i = 0; i < cfg.maintenance; i++) {
+            const startMin = randInt(0, 5 * 60);
+            const endMin = startMin + randInt(150, 360);
+            const health = clamp(Math.round(rand(58, 78)), 0, 100);
+            const energy = clamp(Math.round(rand(55, 80)), 0, 100);
+            const utilization = clamp(Math.round(rand(0, 14)), 0, 100);
+            const riskScore = computeRiskScore(health, utilization, 0.1);
+            trains.push({
+                id: `KMRL-${String(idNum++).padStart(2, '0')}`,
+                status: 'maintenance',
+                statusText: 'Scheduled Maintenance',
+                duty: 'Preventive Maintenance',
+                startMin, endMin,
+                start: toTimeStr(startMin), end: toTimeStr(endMin),
+                health, energyScore: energy, utilization, riskScore,
+                riskLevel: riskLevelFromScore(riskScore),
+                depot: depots[randInt(0, depots.length - 1)],
+                notes: pick(['Brake pad replacement', 'Traction motor inspection', 'Software patching', 'HVAC servicing'])
+            });
+        }
+
+        // Out of Service (optional / 0 in most scenarios)
+        for (let i = 0; i < (cfg.oos || 0); i++) {
+            const health = clamp(Math.round(rand(35, 55)), 0, 100);
+            const energy = clamp(Math.round(rand(40, 60)), 0, 100);
+            const utilization = 0;
+            const riskScore = 0.8;
+            trains.push({
+                id: `KMRL-${String(idNum++).padStart(2, '0')}`,
+                status: 'oos',
+                statusText: 'Out of Service',
+                duty: 'Unavailable',
+                startMin: null, endMin: null, start: '-', end: '-',
+                health, energyScore: energy, utilization, riskScore,
+                riskLevel: 'High',
+                depot: depots[randInt(0, depots.length - 1)],
+                notes: pick(['Corrective maintenance needed', 'Awaiting spare parts', 'To be commissioned'])
+            });
+        }
+
+        // If totals don’t add up due to cfg.oos, pad with standby
+        while (trains.length < total) {
+            const startMin = randInt(cfg.serviceStart, cfg.serviceStart + 60);
+            const endMin = randInt(cfg.serviceEnd - 120, cfg.serviceEnd);
+            const health = clamp(Math.round(rand(70, 90)), 0, 100);
+            const energy = clamp(Math.round(rand(62, 90)), 0, 100);
+            const utilization = clamp(Math.round(rand(10, 25)), 0, 100);
+            const riskScore = computeRiskScore(health, utilization, 0.02);
+            trains.push({
+                id: `KMRL-${String(idNum++).padStart(2, '0')}`,
+                status: 'standby',
+                statusText: 'Standby (Hot Spare)',
+                duty: 'Standby - Hot Spare',
+                startMin, endMin,
+                start: toTimeStr(startMin), end: toTimeStr(endMin),
+                health, energyScore: energy, utilization, riskScore,
+                riskLevel: riskLevelFromScore(riskScore),
+                depot: depots[randInt(0, depots.length - 1)],
+                notes: 'Standby buffer for resilience'
+            });
+        }
+
+        // Summary metrics
+        const revenueTrains = trains.filter(t => t.status === 'revenue');
+        const deployed = trains.filter(t => t.status === 'revenue' || t.status === 'standby').length;
+        const spare = trains.length - revenueTrains.length;
+        const avgEnergy = Math.round(avg(trains.map(t => t.energyScore)));
+        const avgUtilRevenue = Math.round(avg(revenueTrains.map(t => t.utilization)));
+        const avgRisk = avg(trains.map(t => t.riskScore));
+        const otp = clamp(Math.round(96 - (avgRisk * 18) + rand(-1.5, 1.5)), 85, 99); // On-time performance %
+        const headway = cfg.headwayMin;
+        const baseCostPerTrain = 240000; // INR per deployed revenue train (illustrative)
+        const costAdj = 1 - ((avgEnergy - 70) / 500); // small energy efficiency bonus
+        const estCost = Math.round(revenueTrains.length * baseCostPerTrain * costAdj);
+
+        return {
+            trains,
+            summary: {
+                total: trains.length,
+                deployed,
+                revenue: revenueTrains.length,
+                standby: trains.filter(t => t.status === 'standby').length,
+                maintenance: trains.filter(t => t.status === 'maintenance').length,
+                oos: trains.filter(t => t.status === 'oos').length,
+                headway,
+                otp,
+                avgEnergy,
+                avgUtilRevenue,
+                spare,
+                estCost
+            }
+        };
+    }
+
+    function pick(arr) { return arr[randInt(0, arr.length - 1)]; }
+    function avg(arr) { return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0; }
+    function computeRiskScore(health, utilization, noise = 0.05) {
+        // Higher when health is low and utilization high
+        let score = (1 - health / 100) * 0.7 + (utilization / 100) * 0.3 + rand(-noise, noise);
+        return clamp(score, 0, 1);
+    }
+    function riskLevelFromScore(score) {
+        if (score >= 0.6) return 'High';
+        if (score >= 0.3) return 'Medium';
+        return 'Low';
+    }
+
+    function renderKpis(s) {
+        const container = document.getElementById('results');
+        container.innerHTML = `
+            <div class="result-card">
+                <h3>${s.deployed}/${s.total}</h3>
+                <p>Trains Deployed</p>
+            </div>
+            <div class="result-card">
+                <h3>${s.otp}%</h3>
+                <p>Expected On-Time Performance</p>
+            </div>
+            <div class="result-card">
+                <h3>${s.avgEnergy}/100</h3>
+                <p>Energy Optimization Score</p>
+            </div>
+            <div class="result-card">
+                <h3>${s.avgUtilRevenue}%</h3>
+                <p>Avg Utilization (Revenue)</p>
+            </div>
+            <div class="result-card">
+                <h3>${s.spare}</h3>
+                <p>Standby + Maintenance + OOS</p>
+            </div>
+            <div class="result-card">
+                <h3>${INR.format(s.estCost)}</h3>
+                <p>Estimated Operating Cost (Daily)</p>
+            </div>
+        `;
+    }
+
+    function renderTable() {
+        if (!trains.length) return;
+        const tbody = document.getElementById('tableBody');
+        const search = (document.getElementById('searchBox').value || '').toLowerCase().trim();
+
+        // Filtering
+        let list = trains.filter(t => {
+            let pass = true;
+            if (activeFilter === 'revenue') pass = t.status === 'revenue';
+            else if (activeFilter === 'standby') pass = t.status === 'standby';
+            else if (activeFilter === 'maintenance') pass = t.status === 'maintenance';
+            else if (activeFilter === 'oos') pass = t.status === 'oos';
+            else if (activeFilter === 'highrisk') pass = t.riskLevel === 'High';
+
+            if (pass && search) {
+                const blob = `${t.id} ${t.statusText} ${t.duty} ${t.depot} ${t.notes}`.toLowerCase();
+                pass = blob.includes(search);
+            }
+            return pass;
+        });
+
+        // Sorting
+        const key = sortState.key;
+        const dir = sortState.dir;
+        list.sort((a, b) => {
+            let va = a[key], vb = b[key];
+            // Normalize undefined for notes/time cols
+            if (va == null) va = -Infinity;
+            if (vb == null) vb = -Infinity;
+            if (typeof va === 'string' && typeof vb === 'string') {
+                return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+            } else {
+                return dir === 'asc' ? (va - vb) : (vb - va);
+            }
+        });
+
+        // Render
+        tbody.innerHTML = '';
+        list.forEach(t => {
+            const healthClass = t.health >= 80 ? 'status-good' : (t.health >= 60 ? 'status-warn' : 'status-bad');
+            const riskClass = t.riskLevel === 'High' ? 'status-bad' : (t.riskLevel === 'Medium' ? 'status-warn' : 'status-good');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${t.id}</td>
+                <td>${t.statusText}</td>
+                <td>${t.duty}</td>
+                <td>${t.start}</td>
+                <td>${t.end}</td>
+                <td>
+                    <div class="progress" title="${t.utilization}%">
+                        <div class="progress-bar" style="width:${t.utilization}%"></div>
+                    </div>
+                </td>
+                <td>${t.energyScore}</td>
+                <td class="${healthClass}">${t.health}</td>
+                <td class="${riskClass}">${t.riskLevel}</td>
+                <td>${t.depot}</td>
+                <td>${t.notes}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('noRows').style.display = list.length ? 'none' : 'block';
+    }
+
+    function filterTrains(filter, btn) {
+        activeFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        renderTable();
+    }
+
+    function exportCSV() {
+        if (!trains.length) return;
+        // Export currently visible rows based on filter+search
+        const search = (document.getElementById('searchBox').value || '').toLowerCase().trim();
+        let list = trains.filter(t => {
+            let pass = true;
+            if (activeFilter === 'revenue') pass = t.status === 'revenue';
+            else if (activeFilter === 'standby') pass = t.status === 'standby';
+            else if (activeFilter === 'maintenance') pass = t.status === 'maintenance';
+            else if (activeFilter === 'oos') pass = t.status === 'oos';
+            else if (activeFilter === 'highrisk') pass = t.riskLevel === 'High';
+
+            if (pass && search) {
+                const blob = `${t.id} ${t.statusText} ${t.duty} ${t.depot} ${t.notes}`.toLowerCase();
+                pass = blob.includes(search);
+            }
+            return pass;
+        });
+
+        const headers = ['Train ID','Status','Duty','Start','End','Utilization','Energy Score','Health','Delay Risk','Depot','Notes'];
+        const rows = list.map(t => [
+            t.id, t.statusText, t.duty, t.start, t.end, t.utilization, t.energyScore, t.health, t.riskLevel, t.depot, t.notes
+        ]);
+        const csv = [headers, ...rows].map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const d = document.getElementById('planDate').value || 'plan';
+        const scenario = (document.getElementById('demand').value || 'scenario').replace(/\s+/g, '_');
+        a.href = url;
+        a.download = `KMRL_Induction_${d}_${scenario}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function initSorting() {
+        document.querySelectorAll('#trainsTable th').forEach(th => {
+            const key = th.dataset.key;
+            if (!key) return;
+            th.addEventListener('click', () => {
+                if (sortState.key === key) {
+                    sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortState.key = key;
+                    sortState.dir = 'asc';
+                }
+                renderTable();
+            });
+        });
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+        setTodayIfEmpty();
+        initSorting();
+        // Optional: auto-run initial plan
+        // runOptimization();
+    });
+</script>
+</body>
+</html>
