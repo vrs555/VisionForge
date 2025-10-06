@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>KMRL — AI Scheduling Control Center</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="script.js"></script>
+</head>
+<body>
+  <!-- Animated background -->
+  <div class="animated-bg">
+    <div class="grid-overlay"></div>
+    <div class="particle-container" id="particles"></div>
+    <div class="glow-orbs">
+      <div class="orb orb1"></div>
+      <div class="orb orb2"></div>
+      <div class="orb orb3"></div>
+    </div>
+  </div>
+
+  <header>
+    <div class="brand">
+      <div class="logo-container">
+        <div class="logo-pulse"></div>
+        <i class="fas fa-train logo-icon"></i>
+      </div>
+      <div>
+        <h1>KMRL AI Control Center</h1>
+        <p class="sub"><span class="live-indicator"></span> Live Monitoring System • Real-time Analytics</p>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-card" id="stat-total">
+        <i class="fas fa-subway"></i>
+        <div class="stat-content">
+          <span class="stat-value" data-value="0">0</span>
+          <span class="stat-label">Total Trains</span>
+        </div>
+      </div>
+      <div class="stat-card critical-stat" id="stat-critical">
+        <i class="fas fa-exclamation-triangle"></i>
+        <div class="stat-content">
+          <span class="stat-value" data-value="0">0</span>
+          <span class="stat-label">Critical</span>
+        </div>
+      </div>
+      <div class="stat-card minor-stat" id="stat-minor">
+        <i class="fas fa-exclamation-circle"></i>
+        <div class="stat-content">
+          <span class="stat-value" data-value="0">0</span>
+          <span class="stat-label">Minor Issues</span>
+        </div>
+      </div>
+      <div class="stat-card healthy-stat" id="stat-healthy">
+        <i class="fas fa-check-circle"></i>
+        <div class="stat-content">
+          <span class="stat-value" data-value="0">0</span>
+          <span class="stat-label">Healthy</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="left">
+      <div class="panel glass-panel">
+        <div class="panel-header">
+          <h2><i class="fas fa-map-marked-alt"></i> Live Yard Visualization</h2>
+          <div class="panel-controls">
+            <button class="control-btn" id="zoom-in"><i class="fas fa-search-plus"></i></button>
+            <button class="control-btn" id="zoom-out"><i class="fas fa-search-minus"></i></button>
+            <button class="control-btn" id="refresh-yard"><i class="fas fa-sync-alt"></i></button>
+          </div>
+        </div>
+        <div id="yard" class="yard">
+          <div class="yard-grid"></div>
+          <svg id="tracks-svg" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid meet"></svg>
+          <div id="trains-layer" class="trains-layer"></div>
+          <div class="track-labels">
+            <div class="track-label" style="top: 70px">Track 1</div>
+            <div class="track-label" style="top: 170px">Track 2</div>
+            <div class="track-label" style="top: 270px">Track 3</div>
+            <div class="track-label" style="top: 370px">Track 4</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel glass-panel small">
+        <div class="panel-header">
+          <h2><i class="fas fa-lightbulb"></i> AI Recommendations</h2>
+          <span class="badge-new">AI Powered</span>
+        </div>
+        <div id="recommend-list" class="recommend-list"></div>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="panel glass-panel">
+        <div class="panel-header">
+          <h2><i class="fas fa-table"></i> Real-time Status Monitor</h2>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>Live</span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="status-table">
+            <thead>
+              <tr>
+                <th>Train ID</th>
+                <th>Location</th>
+                <th>Health</th>
+                <th>Next Service</th>
+                <th>Days Left</th>
+                <th>Risk Level</th>
+              </tr>
+            </thead>
+            <tbody id="status-body">
+              <!-- Skeleton loader -->
+              <tr class="skeleton-row">
+                <td><div class="skeleton"></div></td>
+                <td><div class="skeleton"></div></td>
+                <td><div class="skeleton"></div></td>
+                <td><div class="skeleton"></div></td>
+                <td><div class="skeleton"></div></td>
+                <td><div class="skeleton"></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel glass-panel small">
+        <div class="panel-header">
+          <h2><i class="fas fa-chart-pie"></i> Fleet Health Analytics</h2>
+        </div>
+        <div class="chart-container">
+          <canvas id="healthChart" width="300" height="240"></canvas>
+          <div class="chart-center-label">
+            <span class="chart-percentage">0%</span>
+            <span class="chart-subtitle">Healthy</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Enhanced Modal -->
+  <div id="detail-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">Train Details</h3>
+        <button id="modal-close" class="modal-close"><i class="fas fa-times"></i></button>
+      </div>
+      <div id="modal-content" class="modal-content"></div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="loader">
+      <div class="loader-track">
+        <div class="loader-train"></div>
+      </div>
+      <p>Initializing Control Center...</p>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-left">
+        <small>© 2024 VisionForge • KMRL AI Control System</small>
+      </div>
+      <div class="footer-right">
+        <span class="connection-status">
+          <i class="fas fa-wifi"></i> Connected
+        </span>
+        <span class="last-update">Last update: <span id="last-update-time">--:--:--</span></span>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
